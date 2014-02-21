@@ -1,11 +1,11 @@
 
 type pattern = { constructor: string; tags : string list }
-type 'a clause = { pattern : pattern; body : 'a }
+type 'a case = { pattern : pattern; body : 'a }
 
 type 'a lambda ={ var: string ; body: 'a }
 type 'a app ={ t1 :'a ; t2 : 'a }
 type 'a gadt_app = { k : string; terms: 'a list }
-type 'a case = { pattern : pattern ; clause: 'a clause }
+type 'a match_term = { term : 'a ; cases: 'a case list }
 
 type term =
    Var of string
@@ -14,7 +14,7 @@ type term =
    | Let of term lambda
    | Fix of term lambda
    | GADTApp of term gadt_app
-   | Case of term case
+   | Match of term match_term
 
 let rec is_value = function
    | Lambda _ -> true
@@ -37,7 +37,9 @@ let rec eval = function
         let v2 = eval(t2) in
         eval (App { t1; t2=v2})
    | App { t1= Lambda{ var; body }; t2} when is_value(t2) -> subst var t2 body
-   | otherwise -> otherwise
+   | Match { term = GADTApp { k ; terms }; cases = { pattern = {constructor; tags}; body }  :: xs } when k == constructor ->
+     List. (fold_left (fun body -> fun (var,value) -> subst var value body) body (combine tags terms))
+   | otherwise -> failwith "Failed matching"
 
 (*
 (E-Context) E [t] -> E ['t] if t -> 't
